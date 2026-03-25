@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa de Árvores Frutíferas</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --primary-color: #2e7d32;
+            --secondary-color: #e8f5e9;
+            --text-color: #333;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            color: var(--text-color);
+        }
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            text-align: center;
+            padding: 2rem 1rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+        }
+        header p {
+            margin-top: 10px;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        main {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        #map {
+            height: 500px;
+            width: 100%;
+            border-radius: 12px;
+            border: 2px solid var(--primary-color);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: var(--secondary-color);
+            color: var(--primary-color);
+        }
+        tr:hover {
+            background-color: #f1f8f1;
+        }
+        footer {
+            text-align: center;
+            padding: 20px;
+            background-color: var(--primary-color);
+            color: white;
+            margin-top: 40px;
+        }
+        .popup-title {
+            color: var(--primary-color);
+            margin: 0 0 5px 0;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .popup-curiosity {
+            font-style: italic;
+            color: #555;
+            margin-top: 10px;
+            border-top: 1px solid #ccc;
+            padding-top: 5px;
+        }
+        /* Estilo para os emojis no mapa */
+        .custom-tree-icon {
+            font-size: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>🌳 Pomar Mapeado</h1>
+    <p>Classificação, localização e curiosidades das árvores frutíferas do campus</p>
+</header>
+
+<main>
+    <h2>🗺️ Mapa Interativo</h2>
+    <p>Clique nos ícones das árvores no mapa para ver a localização exata, referências e curiosidades!</p>
+    <div id="map"></div>
+
+    <h2>📋 Lista de Árvores</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nome da Árvore</th>
+                    <th>Localização (Ref.)</th>
+                    <th>Curiosidade</th>
+                </tr>
+            </thead>
+            <tbody id="tabela-corpo">
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<footer>
+    <p><strong>Projeto desenvolvido por:</strong> Arthur, Davi Ribeiro, Davi Machado</p>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // Dicionário de emojis para cada tipo de árvore
+    const emojisArvores = {
+        "Mangueira": "🥭",
+        "Monguba": "🌳",
+        "Aceroleira": "🍒",
+        "Limoeiro": "🍋",
+        "Carambola": "⭐",
+        "Pitombeira": "🟤",
+        "Cajueiro": "🥜",
+        "Goiabeira": "🍈",
+        "Coqueiro": "🥥",
+        "Pitaya": "🌵",
+        "Bananeira": "🍌",
+        "Amora(?)": "🫐",
+        "Videira": "🍇",
+        "Mamoeiro": "🥭",
+        "Mexeriqueira": "🍊"
+    };
+
+    const curiosidades = {
+        "Mangueira": "Originária da Índia, a manga é considerada a 'rainha das frutas'.",
+        "Monguba": "Suas sementes podem ser torradas e consumidas como castanhas.",
+        "Aceroleira": "Contém até 100 vezes mais vitamina C do que uma laranja!",
+        "Limoeiro": "O suco pode ser usado para gerar energia em experimentos de baterias.",
+        "Carambola": "Tem o formato perfeito de uma estrela quando cortada.",
+        "Pitombeira": "Muito comum no Nordeste, tem um sabor agridoce único.",
+        "Cajueiro": "O caju é um 'pseudofruto'. O verdadeiro fruto é a castanha!",
+        "Goiabeira": "A goiaba é extremamente rica em licopeno e antioxidantes.",
+        "Coqueiro": "A água de coco já foi usada como soro em emergências médicas.",
+        "Pitaya": "Também chamada de 'Fruta do Dragão', floresce apenas à noite.",
+        "Bananeira": "A bananeira é tecnicamente uma erva gigante, não uma árvore.",
+        "Amora(?)": "As folhas da amoreira são o único alimento do bicho-da-seda.",
+        "Videira": "As uvas são cultivadas há mais de 8.000 anos pela humanidade.",
+        "Mamoeiro": "Contém papaína, uma enzima excelente para a digestão.",
+        "Mexeriqueira": "Seus óleos essenciais na casca dão o cheiro característico."
+    };
+
+    const dadosArvores = [
+        { id: 1, nome: "Mangueira", latDMS: "20°48'11.5\"S", lngDMS: "41°09'15.7\"W", ref: "Ao lado do B1" },
+        { id: 2, nome: "Monguba", latDMS: "20°48'12.9\"S", lngDMS: "41°09'15.5\"W", ref: "Perto do galpão de engenharia" },
+        { id: 3, nome: "Aceroleira", latDMS: "20°48'13.2\"S", lngDMS: "41°09'17.6\"W", ref: "Perto do estacionamento interno" },
+        { id: 4, nome: "Limoeiro", latDMS: "20°48'13.1\"S", lngDMS: "41°09'18.5\"W", ref: "Perto do estacionamento interno" },
+        { id: 5, nome: "Carambola", latDMS: "20°48'09.5\"S", lngDMS: "41°09'19.9\"W", ref: "Perto do estacionamento externo" },
+        { id: 6, nome: "Pitombeira", latDMS: "20°48'08.6\"S", lngDMS: "41°09'13.9\"W", ref: "Perto da quadra de jogos" },
+        { id: 7, nome: "Cajueiro", latDMS: "20°48'08.2\"S", lngDMS: "41°09'13.7\"W", ref: "Perto da quadra de jogos" },
+        { id: 8, nome: "Goiabeira", latDMS: "20°48'09.2\"S", lngDMS: "41°09'14.3\"W", ref: "Perto do B9" },
+        { id: 9, nome: "Coqueiro", latDMS: "20°48'13.1\"S", lngDMS: "41°09'16.1\"W", ref: "Perto do galpão de engenharia" },
+        { id: 10, nome: "Pitaya", latDMS: "20°48'12.2\"S", lngDMS: "41°09'14.7\"W", ref: "Perto do galpão de engenharia" },
+        { id: 11, nome: "Bananeira", latDMS: "20°48'10.6\"S", lngDMS: "41°09'14.6\"W", ref: "Perto do B5" },
+        { id: 12, nome: "Amora(?)", latDMS: "20°48'13.3\"S", lngDMS: "41°09'15.5\"W", ref: "Perto do galpão de engenharia" },
+        { id: 13, nome: "Videira", latDMS: "20°48'13.5\"S", lngDMS: "41°09'15.5\"W", ref: "Perto do galpão de engenharia" },
+        { id: 14, nome: "Mamoeiro", latDMS: "20°48'13.2\"S", lngDMS: "41°09'17.2\"W", ref: "Perto do estacionamento interno" },
+        { id: 15, nome: "Mexeriqueira", latDMS: "20°48'13.1\"S", lngDMS: "41°09'18.1\"W", ref: "Perto do estacionamento" }
+    ];
+
+    function dmsParaDecimal(dms) {
+        const regex = /(\d+)°(\d+)'([\d.]+)"([NSWE])/i;
+        const partes = dms.match(regex);
+        if (!partes) return 0;
+        const graus = parseFloat(partes[1]);
+        const minutos = parseFloat(partes[2]);
+        const segundos = parseFloat(partes[3]);
+        const direcao = partes[4].toUpperCase();
+        let decimal = graus + (minutos / 60) + (segundos / 3600);
+        if (direcao === 'S' || direcao === 'W') decimal *= -1;
+        return decimal;
+    }
+
+    const map = L.map('map').setView([-20.8033, -41.1545], 18);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    const tabelaCorpo = document.getElementById('tabela-corpo');
+
+    dadosArvores.forEach(arvore => {
+        const lat = dmsParaDecimal(arvore.latDMS);
+        const lng = dmsParaDecimal(arvore.lngDMS);
+        const curiosidade = curiosidades[arvore.nome] || "Curiosidade não encontrada.";
+        
+        // Seleciona o emoji correspondente ou usa uma árvore padrão se não encontrar
+        const emoji = emojisArvores[arvore.nome] || "🌳";
+
+        // Cria o ícone com o emoji específico da fruta
+        const treeIcon = L.divIcon({
+            html: emoji,
+            iconSize: [30, 30],
+            className: 'custom-tree-icon',
+            iconAnchor: [15, 15]
+        });
+
+        const marker = L.marker([lat, lng], {icon: treeIcon}).addTo(map);
+        
+        const popupContent = `
+            <h3 class="popup-title">${emoji} ${arvore.nome}</h3>
+            <p><strong>Referência:</strong> ${arvore.ref}</p>
+            <div class="popup-curiosity">💡 ${curiosidade}</div>
+        `;
+        marker.bindPopup(popupContent);
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${arvore.id}</td>
+            <td><strong>${emoji} ${arvore.nome}</strong></td>
+            <td>${arvore.ref}</td>
+            <td>${curiosidade}</td>
+        `;
+        tabelaCorpo.appendChild(tr);
+    });
+</script>
+
+</body>
+</html>
